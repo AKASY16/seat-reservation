@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: "${DB_URL:jdbc:mysql://localhost:3306/seat_reservation?connectionTimeZone=UTC}"
+    username: "${DB_USERNAME:app}"
+    password: "${DB_PASSWORD:app}"
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # 시간은 모두 UTC로 저장한다. 서버마다 시간대 설정이 달라도 같은 값을 읽고 쓰게 하기 위해서다.
+        jdbc:
+          time_zone: UTC
+
+reservation:
+  hold:
+    # 선점 유지 시간. 테스트에서는 짧게 줄여서 쓴다.
+    ttl: ${HOLD_TTL:PT5M}
+    max-seats: 10
+    expiry:
+      # 만료된 선점을 정리하는 주기와 한 번에 처리할 개수.
+      # 정리가 늦어도 만료된 좌석은 선점 요청 시점에 바로 다시 잡을 수 있다. (SeatRepository.holdSeats)
+      interval: ${HOLD_EXPIRY_INTERVAL:PT10S}
+      batch-size: 100
+      enabled: true
