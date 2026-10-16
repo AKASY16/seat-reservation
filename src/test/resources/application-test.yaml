@@ -1,0 +1,5 @@
+reservation:
+  hold:
+    expiry:
+      # 테스트가 만료 처리를 직접 호출한다. 스케줄러가 끼어들면 결과가 실행마다 달라진다.
+      enabled: false
