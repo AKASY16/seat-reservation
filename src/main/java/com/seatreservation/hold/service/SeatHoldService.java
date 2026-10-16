@@ -17,6 +17,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -94,8 +95,11 @@ public class SeatHoldService {
     }
 
     private HoldResponse createHold(String userId, String idempotencyKey, HoldRequest request) {
-        LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime expiresAt = now.plus(holdProperties.ttl());
+        // DB의 DATETIME(6)은 마이크로초까지만 저장한다. 응답으로 알려 주는 만료 시각과
+        // 저장되어 판정에 쓰이는 만료 시각이 같도록, 그보다 작은 단위는 여기서 버린다.
+        // 선점 유지 시간 설정에 더 작은 단위가 있을 수 있어서 만료 시각도 한 번 더 자른다.
+        LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
+        LocalDateTime expiresAt = now.plus(holdProperties.ttl()).truncatedTo(ChronoUnit.MICROS);
 
         SeatHold hold = SeatHold.create(request.performanceId(), userId, idempotencyKey,
                 request.seatIds(), now, expiresAt);

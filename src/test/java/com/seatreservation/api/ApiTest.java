@@ -1,5 +1,6 @@
 package com.seatreservation.api;
 
+import com.seatreservation.support.Concurrently;
 import com.seatreservation.support.IntegrationTestSupport;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.DisplayName;
@@ -11,8 +12,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -118,7 +121,8 @@ class ApiTest extends IntegrationTestSupport {
                         .header("X-User-Id", "user")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"performanceId\":1,\"seatIds\":[]}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(startsWith("seatIds")));
 
         mockMvc.perform(post("/payment-events")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -130,6 +134,40 @@ class ApiTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/performances/{id}/seats", 999_999))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DB 컬럼보다 긴 사용자 식별자나 Idempotency-Key는 400으로 거절한다")
+    void rejectsTooLongHeaders() throws Exception {
+        List<Long> seatIds = fixtures.createPerformanceWithSeats(1);
+        String body = holdBody(fixtures.performanceIdOf(seatIds.getFirst()), seatIds.getFirst());
+        String tooLong = "u".repeat(65);
+
+        mockMvc.perform(post("/holds")
+                        .header("X-User-Id", tooLong)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        mockMvc.perform(post("/holds")
+                        .header("X-User-Id", " ")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/holds")
+                        .header("X-User-Id", "user")
+                        .header("Idempotency-Key", "k".repeat(65))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        mockMvc.perform(delete("/holds/{id}", "any-hold").header("X-User-Id", tooLong))
+                .andExpect(status().isBadRequest());
+
+        assertThat(fixtures.seatStatus(seatIds.getFirst())).isEqualTo("AVAILABLE");
     }
 
     @Test
@@ -162,6 +200,47 @@ class ApiTest extends IntegrationTestSupport {
         assertThat(fixtures.count("SELECT COUNT(*) FROM unmatched_payment_event WHERE event_id = ? AND reason = ?",
                 "evt-api-4", "PAYMENT_HOLD_MISMATCH")).isEqualTo(1);
         assertThat(fixtures.paymentStatus("pay-api-3")).isEqualTo("APPROVED");
+    }
+
+    @Test
+    @DisplayName("같은 결제가 서로 다른 선점으로 동시에 승인되어도 한쪽만 판매되고 다른 쪽은 422로 기록된다")
+    void samePaymentForTwoHoldsAtOnce() throws Exception {
+        for (int round = 0; round < 10; round++) {
+            List<Long> seatIds = fixtures.createPerformanceWithSeats(2);
+            long performanceId = fixtures.performanceIdOf(seatIds.getFirst());
+            String holdA = createHold("payer", performanceId, seatIds.get(0));
+            String holdB = createHold("payer", performanceId, seatIds.get(1));
+            String paymentId = "pay-shared-" + round;
+            String eventA = "evt-shared-a-" + round;
+            String eventB = "evt-shared-b-" + round;
+
+            List<Callable<?>> tasks = List.of(
+                    () -> mockMvc.perform(post("/payment-events").contentType(MediaType.APPLICATION_JSON)
+                            .content(paymentEvent(eventA, paymentId, holdA, "approved"))).andReturn(),
+                    () -> mockMvc.perform(post("/payment-events").contentType(MediaType.APPLICATION_JSON)
+                            .content(paymentEvent(eventB, paymentId, holdB, "approved"))).andReturn()
+            );
+            List<Object> results = Concurrently.run(tasks);
+
+            assertThat(results).allMatch(MvcResult.class::isInstance);
+            List<Integer> statuses = results.stream()
+                    .map(r -> ((MvcResult) r).getResponse().getStatus()).toList();
+            assertThat(statuses).containsExactlyInAnyOrder(200, 422);
+
+            boolean aWon = statuses.get(0) == 200;
+            String winner = aWon ? holdA : holdB;
+            String loserEvent = aWon ? eventB : eventA;
+            MvcResult rejected = (MvcResult) results.get(aWon ? 1 : 0);
+            assertThat(JsonPath.<String>read(rejected.getResponse().getContentAsString(), "$.code"))
+                    .isEqualTo("PAYMENT_HOLD_MISMATCH");
+
+            assertThat(fixtures.count("SELECT COUNT(*) FROM payment WHERE payment_id = ? AND hold_id = ?",
+                    paymentId, winner)).isEqualTo(1);
+            assertThat(fixtures.holdStatus(winner)).isEqualTo("CONFIRMED");
+            assertThat(fixtures.holdStatus(aWon ? holdB : holdA)).isEqualTo("ACTIVE");
+            assertThat(fixtures.count("SELECT COUNT(*) FROM unmatched_payment_event WHERE event_id = ? AND reason = ?",
+                    loserEvent, "PAYMENT_HOLD_MISMATCH")).isEqualTo(1);
+        }
     }
 
     private String createHold(String userId, long performanceId, Long... seatIds) throws Exception {

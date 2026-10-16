@@ -64,4 +64,8 @@ public class TestFixtures {
     public int count(String sql, Object... args) {
         return jdbcTemplate.queryForObject(sql, Integer.class, args);
     }
+
+    public <T> T queryForObject(String sql, Class<T> type, Object... args) {
+        return jdbcTemplate.queryForObject(sql, type, args);
+    }
 }
