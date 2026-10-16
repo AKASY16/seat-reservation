@@ -60,6 +60,7 @@ public class SeatHoldService {
         }
 
         try {
+            rejectIfAlreadyTaken(request);
             HoldResponse created = transactionTemplate.execute(status -> createHold(userId, idempotencyKey, request));
             return new HoldResult(created, true);
         } catch (BusinessException | DataIntegrityViolationException e) {
@@ -72,6 +73,23 @@ public class SeatHoldService {
                 }
             }
             throw e;
+        }
+    }
+
+    /**
+     이미 잡히거나 팔린 좌석이 하나라도 있으면 쓰기 트랜잭션을 열지 않고 바로 거절한다.
+
+     인기 좌석에는 실패할 요청이 몰린다. 이 요청들이 전부 트랜잭션을 열고 UPDATE한 뒤 롤백하면
+     DB 시간 대부분이 실패 처리에 쓰인다. (README.md 부하 시험 참고) 잠금 없는 조회 한 번으로 먼저 걸러낸다.
+
+     여기서는 잠그지 않으므로 통과한 요청도 createHold의 UPDATE에서 다시 판단한다.
+     방금 풀린 좌석을 아직 잡힌 것으로 읽어 거절하는 경우는 그 요청이 조금 먼저 들어온 것과 같은 결과다.
+     **/
+    private void rejectIfAlreadyTaken(HoldRequest request) {
+        int holdable = seatRepository.countHoldable(request.performanceId(), request.seatIds(),
+                LocalDateTime.now(clock));
+        if (holdable != request.seatIds().size()) {
+            throw seatUnavailable();
         }
     }
 
@@ -88,11 +106,15 @@ public class SeatHoldService {
                 hold.getId(), expiresAt, now);
         if (held != request.seatIds().size()) {
             // 예외로 트랜잭션 전체를 롤백한다. 이 요청이 바꾼 좌석이 함께 되돌아간다.
-            throw new BusinessException(HttpStatus.CONFLICT, "SEAT_UNAVAILABLE",
-                    "이미 선점되었거나 판매된 좌석이 포함되어 있습니다.");
+            throw seatUnavailable();
         }
         seatHoldRepository.saveAndFlush(hold);
         return HoldResponse.from(hold);
+    }
+
+    private BusinessException seatUnavailable() {
+        return new BusinessException(HttpStatus.CONFLICT, "SEAT_UNAVAILABLE",
+                "이미 선점되었거나 판매된 좌석이 포함되어 있습니다.");
     }
 
     private Optional<HoldResult> findExisting(String userId, String idempotencyKey, HoldRequest request) {

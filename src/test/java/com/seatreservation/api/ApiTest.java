@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -129,6 +130,55 @@ class ApiTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/performances/{id}/seats", 999_999))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("처리할 수 없는 결제 이벤트는 422로 거절하고, 재전송되어도 한 번만 보관한다")
+    void rejectedPaymentEventsAreStoredOnce() throws Exception {
+        List<Long> seatIds = fixtures.createPerformanceWithSeats(2);
+        long performanceId = fixtures.performanceIdOf(seatIds.getFirst());
+        String firstHold = createHold("payer", performanceId, seatIds.get(0));
+        String secondHold = createHold("payer", performanceId, seatIds.get(1));
+        String unknownHold = paymentEvent("evt-api-unknown", "pay-api-2", "unknown-hold", "approved");
+
+        // 선점을 찾을 수 없는 이벤트를 두 번 보낸다.
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(post("/payment-events").contentType(MediaType.APPLICATION_JSON).content(unknownHold))
+                    .andExpect(status().isUnprocessableContent())
+                    .andExpect(jsonPath("$.code").value("HOLD_NOT_FOUND"));
+        }
+
+        // 첫 번째 선점에 연결된 결제가 두 번째 선점으로 다시 온다.
+        mockMvc.perform(post("/payment-events").contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentEvent("evt-api-3", "pay-api-3", firstHold, "approved")))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/payment-events").contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentEvent("evt-api-4", "pay-api-3", secondHold, "cancelled")))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("PAYMENT_HOLD_MISMATCH"));
+
+        assertThat(fixtures.count("SELECT COUNT(*) FROM unmatched_payment_event WHERE event_id = ? AND reason = ?",
+                "evt-api-unknown", "HOLD_NOT_FOUND")).isEqualTo(1);
+        assertThat(fixtures.count("SELECT COUNT(*) FROM unmatched_payment_event WHERE event_id = ? AND reason = ?",
+                "evt-api-4", "PAYMENT_HOLD_MISMATCH")).isEqualTo(1);
+        assertThat(fixtures.paymentStatus("pay-api-3")).isEqualTo("APPROVED");
+    }
+
+    private String createHold(String userId, long performanceId, Long... seatIds) throws Exception {
+        MvcResult created = mockMvc.perform(post("/holds")
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(holdBody(performanceId, seatIds)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return JsonPath.read(created.getResponse().getContentAsString(), "$.holdId");
+    }
+
+    private String paymentEvent(String eventId, String paymentId, String holdId, String status) {
+        return """
+                {"eventId":"%s","paymentId":"%s","holdId":"%s",
+                 "status":"%s","occurredAt":"2026-10-18T03:00:30Z"}
+                """.formatted(eventId, paymentId, holdId, status);
     }
 
     private String holdBody(long performanceId, Long... seatIds) {

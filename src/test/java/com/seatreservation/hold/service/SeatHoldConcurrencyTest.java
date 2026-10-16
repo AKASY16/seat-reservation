@@ -61,7 +61,8 @@ class SeatHoldConcurrencyTest extends IntegrationTestSupport {
         assertThat(error.getCode()).isEqualTo("SEAT_UNAVAILABLE");
         assertThat(fixtures.seatStatus(seatIds.get(0))).isEqualTo("AVAILABLE");
         assertThat(fixtures.seatStatus(seatIds.get(2))).isEqualTo("AVAILABLE");
-        assertThat(fixtures.count("SELECT COUNT(*) FROM seat_hold WHERE user_id = 'second'")).isZero();
+        assertThat(fixtures.count("SELECT COUNT(*) FROM seat_hold WHERE user_id = 'second' AND performance_id = ?",
+                performanceId)).isZero();
     }
 
     @Test

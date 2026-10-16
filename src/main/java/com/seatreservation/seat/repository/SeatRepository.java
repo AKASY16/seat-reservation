@@ -17,6 +17,23 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     List<Seat> findByPerformanceIdOrderByIdAsc(Long performanceId);
 
     /**
+     요청한 좌석 중 지금 잡을 수 있는 좌석 수를 센다. 잡을 수 있는 기준은 holdSeats의 WHERE와 같다.
+
+     선점 트랜잭션을 열기 전에 이미 잡힌 좌석이 섞인 요청을 걸러내려고 쓴다.
+     잠금 없이 읽기만 하므로 결과가 맞다는 보장은 없다. 최종 판단은 항상 holdSeats가 한다.
+     **/
+    @Query(value = """
+            SELECT COUNT(*)
+              FROM seat
+             WHERE id IN (:seatIds)
+               AND performance_id = :performanceId
+               AND (status = 'AVAILABLE' OR (status = 'HELD' AND held_until <= :now))
+            """, nativeQuery = true)
+    int countHoldable(@Param("performanceId") Long performanceId,
+                      @Param("seatIds") Collection<Long> seatIds,
+                      @Param("now") LocalDateTime now);
+
+    /**
      비어 있는 좌석만 골라 한 번에 선점 상태로 바꾸고, 바뀐 행 수를 돌려준다.
 
      조건 검사와 변경이 UPDATE 한 문장 안에서 일어나므로, 같은 좌석을 동시에 노리는 요청이 여러 개여도
