@@ -1,0 +1,61 @@
+# 최종 버전 확인 실행 전용 구성. run.sh가 사용한다.
+#
+# 개발용 docker-compose.yml과 프로젝트 이름, DB 볼륨, 네트워크, 포트를 모두 따로 둔다.
+# 이 구성으로 시험해도 개발용 DB와 볼륨은 건드리지 않는다.
+#
+# 앱 이미지는 run.sh가 먼저 빌드해서 LOADCHECK_APP_IMAGE로 넘긴다. 서버 두 대가 같은 이미지를 쓴다.
+# CPU 제한, 네트워크 지연, 연결 한계 설정은 넣지 않는다.
+
+name: seat-loadcheck
+
+x-app: &app
+  image: ${LOADCHECK_APP_IMAGE:-seat-loadcheck-app:latest}
+  pull_policy: never
+  environment:
+    DB_URL: jdbc:mysql://db:3306/seat_reservation?connectionTimeZone=UTC
+    DB_USERNAME: app
+    DB_PASSWORD: app
+    DB_POOL_SIZE: "20"
+    HOLD_TTL: PT5M
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: seat_reservation
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "127.0.0.1:13306:3306"
+    volumes:
+      - loadcheck-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # k6는 같은 네트워크에서 서비스 이름으로 요청한다. 두 서버 모두 컨테이너 안에서는 8080 포트다.
+  app-1:
+    <<: *app
+    ports:
+      - "127.0.0.1:18080:8080"
+
+  app-2:
+    <<: *app
+    ports:
+      - "127.0.0.1:18081:8080"
+
+networks:
+  default:
+    name: seat-loadcheck-net
+
+volumes:
+  loadcheck-mysql-data:

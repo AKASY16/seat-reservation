@@ -1,3 +1,4 @@
 # 운영체제와 관계없이 줄바꿈을 고정한다.
 gradlew text eol=lf
+*.sh text eol=lf
 *.jar binary
