@@ -1,0 +1,12 @@
+SCHEMA_NAME	COUNT_STAR	total_ms	avg_ms	max_ms	lock_ms	SUM_ROWS_AFFECTED	SUM_ROWS_SENT	SUM_ROWS_EXAMINED	SUM_ERRORS	DIGEST_TEXT
+seat_reservation	418	9140.101	21.866	67.394	0.000	0	0	0	0	COMMIT
+seat_reservation	5000	2695.956	0.539	37.771	4.625	0	4998	11441	0	SELECT COUNT ( * ) FROM `seat` WHERE `id` IN (...) AND `performance_id` = ? AND ( STATUS = ? OR ( STATUS = ? AND `held_until` <= ? ) )
+seat_reservation	475	1367.151	2.878	69.690	764.029	868	0	951	0	UPDATE `seat` SET STATUS = ? , `hold_id` = ? , `held_until` = ? WHERE `id` IN (...) AND `performance_id` = ? AND ( STATUS = ? OR ( STATUS = ? AND `held_until` <= ? ) )
+seat_reservation	420	417.784	0.995	27.769	0.281	420	0	0	0	INSERT INTO `seat_hold` ( `created_at` , `expires_at` , `idempotency_key` , `performance_id` , STATUS , `updated_at` , `user_id` , `id` ) VALUES (...)
+seat_reservation	948	298.856	0.315	37.577	0.000	0	0	0	0	SET `autocommit` = ?
+seat_reservation	55	235.387	4.280	19.141	0.000	0	0	0	0	ROLLBACK
+seat_reservation	826	202.354	0.245	14.816	0.471	826	0	0	0	INSERT INTO `seat_hold_item` ( `hold_id` , `seat_id` ) VALUES (...)
+seat_reservation	1	1.053	1.053	1.053	0.003	0	0	0	0	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`
+seat_reservation	1	0.900	0.900	0.900	0.004	0	14	434	0	SELECT HOST , `EVENT_NAME` , `COUNT_STAR` , `ROUND` ( `SUM_TIMER_WAIT` / ?, ... ) AS `total_ms` , `ROUND` ( `AVG_TIMER_WAIT` / ?, ... ) AS `avg_ms` , `ROUND` ( `MAX_TIMER_WAIT` / ?, ... ) AS `max_ms` , `ROUND` ( `SUM_LOCK_TIME` / ?, ... ) AS `lock_ms` , `SUM_ROWS_AFFECTED` , `SUM_ROWS_SENT` , `SUM_ROWS_EXAMINED` , `SUM_ERRORS` FROM `performance_schema` . `events_statements_summary_by_account_by_event_name` WHERE SYSTEM_USER = ? AND `COUNT_STAR` > ? ORDER BY HOST , `SUM_TIMER_WAIT` DESC
+seat_reservation	1	0.387	0.387	0.387	0.004	0	0	0	0	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_account_by_event_name`
+seat_reservation	2	0.199	0.100	0.103	0.000	0	2	2	0	SELECT @@`version_comment` LIMIT ?

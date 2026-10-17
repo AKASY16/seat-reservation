@@ -1,0 +1,19 @@
+# 구성 A 서버 상태
+
+k6 BASE_URLS: http://app-1:8080
+
+## docker compose ps -a
+SERVICE   STATE     STATUS                    IMAGE
+app-1     running   Up 10 seconds             seat-loadcheck-app:e546546
+db        running   Up 27 seconds (healthy)   mysql:8.4
+
+## 서버 컨테이너
+app-1: 상태=running 이미지=sha256:7e6f7ded4733d9ceaedf5ca54c54f2c9b770fe12eeadb022cf85fada8b804c56 NanoCpus=0 CpuQuota=0 메모리제한=0 IP=172.20.0.3
+  app-1 DB_POOL_SIZE=20
+  app-1 HOLD_TTL=PT5M
+  app-1 DB_URL=jdbc:mysql://db:3306/seat_reservation?connectionTimeZone=UTC
+app-2: 컨테이너 없음
+
+## k6 네트워크에서 서비스 이름으로 접근
+app-1: 응답함
+app-2: 응답 없음

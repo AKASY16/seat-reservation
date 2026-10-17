@@ -1,0 +1,13 @@
+SCHEMA_NAME	COUNT_STAR	total_ms	avg_ms	max_ms	lock_ms	SUM_ROWS_AFFECTED	SUM_ROWS_SENT	SUM_ROWS_EXAMINED	SUM_ERRORS	DIGEST_TEXT
+seat_reservation	447	9832.611	21.997	76.601	0.000	0	0	0	0	COMMIT
+seat_reservation	4999	1923.779	0.385	20.049	5.224	0	4999	11321	0	SELECT COUNT ( * ) FROM `seat` WHERE `id` IN (...) AND `performance_id` = ? AND ( STATUS = ? OR ( STATUS = ? AND `held_until` <= ? ) )
+seat_reservation	520	1206.763	2.321	48.016	850.533	918	0	1033	0	UPDATE `seat` SET STATUS = ? , `hold_id` = ? , `held_until` = ? WHERE `id` IN (...) AND `performance_id` = ? AND ( STATUS = ? OR ( STATUS = ? AND `held_until` <= ? ) )
+seat_reservation	73	388.061	5.316	23.071	0.000	0	0	0	0	ROLLBACK
+seat_reservation	853	310.982	0.365	17.980	0.499	853	0	0	0	INSERT INTO `seat_hold_item` ( `hold_id` , `seat_id` ) VALUES (...)
+seat_reservation	1040	275.818	0.265	15.049	0.000	0	0	0	0	SET `autocommit` = ?
+seat_reservation	447	111.597	0.250	5.998	0.298	447	0	0	0	INSERT INTO `seat_hold` ( `created_at` , `expires_at` , `idempotency_key` , `performance_id` , STATUS , `updated_at` , `user_id` , `id` ) VALUES (...)
+seat_reservation	1	1.141	1.141	1.141	0.007	0	14	434	0	SELECT HOST , `EVENT_NAME` , `COUNT_STAR` , `ROUND` ( `SUM_TIMER_WAIT` / ?, ... ) AS `total_ms` , `ROUND` ( `AVG_TIMER_WAIT` / ?, ... ) AS `avg_ms` , `ROUND` ( `MAX_TIMER_WAIT` / ?, ... ) AS `max_ms` , `ROUND` ( `SUM_LOCK_TIME` / ?, ... ) AS `lock_ms` , `SUM_ROWS_AFFECTED` , `SUM_ROWS_SENT` , `SUM_ROWS_EXAMINED` , `SUM_ERRORS` FROM `performance_schema` . `events_statements_summary_by_account_by_event_name` WHERE SYSTEM_USER = ? AND `COUNT_STAR` > ? ORDER BY HOST , `SUM_TIMER_WAIT` DESC
+seat_reservation	1	1.104	1.104	1.104	0.005	0	0	0	0	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`
+seat_reservation	1	0.409	0.409	0.409	0.004	0	0	0	0	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_account_by_event_name`
+seat_reservation	2	0.293	0.147	0.155	0.002	0	0	0	0	SELECT `sh1_0` . `id` FROM `seat_hold` `sh1_0` WHERE `sh1_0` . `status` = ? AND `sh1_0` . `expires_at` <= ? ORDER BY `sh1_0` . `expires_at` LIMIT ?
+seat_reservation	2	0.211	0.106	0.112	0.000	0	2	2	0	SELECT @@`version_comment` LIMIT ?

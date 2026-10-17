@@ -1,0 +1,13 @@
+SCHEMA_NAME	COUNT_STAR	total_ms	avg_ms	max_ms	lock_ms	SUM_ROWS_AFFECTED	SUM_ROWS_SENT	SUM_ROWS_EXAMINED	SUM_ERRORS	DIGEST_TEXT
+seat_reservation	432	9693.703	22.439	97.791	0.000	0	0	0	0	COMMIT
+seat_reservation	520	3342.061	6.427	165.894	3030.248	915	0	1055	0	UPDATE `seat` SET STATUS = ? , `hold_id` = ? , `held_until` = ? WHERE `id` IN (...) AND `performance_id` = ? AND ( STATUS = ? OR ( STATUS = ? AND `held_until` <= ? ) )
+seat_reservation	4999	1594.170	0.319	32.745	6.093	0	5000	11393	0	SELECT COUNT ( * ) FROM `seat` WHERE `id` IN (...) AND `performance_id` = ? AND ( STATUS = ? OR ( STATUS = ? AND `held_until` <= ? ) )
+seat_reservation	88	372.463	4.233	21.796	0.000	0	0	0	0	ROLLBACK
+seat_reservation	842	309.025	0.367	29.450	0.618	842	0	0	0	INSERT INTO `seat_hold_item` ( `hold_id` , `seat_id` ) VALUES (...)
+seat_reservation	1040	181.698	0.175	29.766	0.000	0	0	0	0	SET `autocommit` = ?
+seat_reservation	432	149.429	0.346	13.602	0.272	432	0	0	0	INSERT INTO `seat_hold` ( `created_at` , `expires_at` , `idempotency_key` , `performance_id` , STATUS , `updated_at` , `user_id` , `id` ) VALUES (...)
+seat_reservation	1	1.431	1.431	1.431	0.001	0	0	0	0	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`
+seat_reservation	1	0.905	0.905	0.905	0.005	0	14	434	0	SELECT HOST , `EVENT_NAME` , `COUNT_STAR` , `ROUND` ( `SUM_TIMER_WAIT` / ?, ... ) AS `total_ms` , `ROUND` ( `AVG_TIMER_WAIT` / ?, ... ) AS `avg_ms` , `ROUND` ( `MAX_TIMER_WAIT` / ?, ... ) AS `max_ms` , `ROUND` ( `SUM_LOCK_TIME` / ?, ... ) AS `lock_ms` , `SUM_ROWS_AFFECTED` , `SUM_ROWS_SENT` , `SUM_ROWS_EXAMINED` , `SUM_ERRORS` FROM `performance_schema` . `events_statements_summary_by_account_by_event_name` WHERE SYSTEM_USER = ? AND `COUNT_STAR` > ? ORDER BY HOST , `SUM_TIMER_WAIT` DESC
+seat_reservation	2	0.589	0.294	0.301	0.004	0	0	0	0	SELECT `sh1_0` . `id` FROM `seat_hold` `sh1_0` WHERE `sh1_0` . `status` = ? AND `sh1_0` . `expires_at` <= ? ORDER BY `sh1_0` . `expires_at` LIMIT ?
+seat_reservation	1	0.572	0.572	0.572	0.002	0	0	0	0	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_account_by_event_name`
+seat_reservation	2	0.258	0.129	0.156	0.000	0	2	2	0	SELECT @@`version_comment` LIMIT ?

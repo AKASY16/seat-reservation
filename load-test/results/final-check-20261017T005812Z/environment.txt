@@ -1,0 +1,65 @@
+# 최종 버전 확인 실행 환경
+
+실행 시작 (UTC): 2026-10-17 00:58:13
+실행 시작 (KST): 2026-10-17 09:58:13 KST
+결과 폴더: load-test/results/final-check-20261017T005812Z
+
+## 측정 대상 코드
+Git HEAD: e54654623852e66afe36290f7d198a057738602b
+커밋: fix: 식별자 비교, 만료 시각 정밀도, 같은 결제의 동시 연결 처리 보완 (2026-10-17 05:20:05 +0900)
+미커밋 변경 (git status --porcelain):
+   M .gitattributes
+   M load-test/hold-load.js
+   M load-test/reset.sql
+  ?? load-test/results/
+  ?? load-test/final-check/
+애플리케이션 코드와 빌드 파일(src/, build.gradle, settings.gradle, gradle/, Dockerfile)의 HEAD 대비 변경:
+  없음
+
+## 실행 설정
+구성: A B (A = 서버 1대, B = 서버 2대, 같은 MySQL 1대)
+구성마다 예열 3회, 정식 측정 3회, 정식 측정 전 간격 30초
+k6: shared-iterations, VU 200, 총 5000건, 요청당 좌석 1~4개, 인기 구간 100석에 60% (load-test/hold-load.js)
+HOLD_TTL=PT5M, 서버별 커넥션 풀 20 (compose.yml)
+CPU 제한, 인위적 네트워크 지연, 연결 한계 조정: 없음
+k6 요청 경로: 같은 Docker 네트워크(seat-loadcheck-net)에서 서비스 이름으로 요청 (http://app-1:8080, http://app-2:8080)
+JAR 빌드 방식: docker
+
+## 호스트
+MINGW64_NT-10.0-26200 DESKTOP-MULSGS6 3.6.3-7674c51e.x86_64 2025-07-01 09:13 UTC x86_64 Msys
+Microsoft Windows 11 Pro
+AMD Ryzen 7 5700X3D 8-Core Processor           
+RAM 31.9 GB
+
+## Docker
+Client 29.7.2 / Server 29.7.2
+Docker Compose version v5.3.1
+Docker VM: CPU 16개, 메모리 16728616960 bytes, Docker Desktop, 커널 6.18.33.2-microsoft-standard-WSL2, cgroup v2
+실행 시작 때 이미 떠 있던 컨테이너 (측정에 함께 CPU를 쓸 수 있다):
+  없음
+
+## 빌드 결과
+JAR: build/libs/app.jar, 60593101 bytes
+JAR SHA-256: 6187f47cfa6cb2971db40aae534cc8948bb1a80e9340465dd9736941da90e90c
+이미지 안 JAR SHA-256: 6187f47cfa6cb2971db40aae534cc8948bb1a80e9340465dd9736941da90e90c
+앱 이미지: seat-loadcheck-app:e546546
+앱 이미지 ID: sha256:7e6f7ded4733d9ceaedf5ca54c54f2c9b770fe12eeadb022cf85fada8b804c56
+빌드 JDK 이미지: eclipse-temurin:21-jdk (sha256:f9bf7e9fe2f9bc4657537c1a7e20c768f0c3bafca41598263be4714783dd62eb)
+앱 실행 JRE: openjdk version "21.0.12.1" 2026-08-18 LTS
+MySQL 이미지: mysql:8.4 (sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70)
+k6 이미지: grafana/k6:2.3.0 (sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34)
+k6 버전: k6 v2.3.0 (commit/e088784614, go1.27.1, linux/amd64)
+
+## MySQL
+version
+8.4.11
+VARIABLE_NAME	VARIABLE_VALUE
+character_set_server	utf8mb4
+collation_server	utf8mb4_unicode_ci
+innodb_buffer_pool_size	134217728
+innodb_flush_log_at_trx_commit	1
+innodb_lock_wait_timeout	50
+max_connections	151
+performance_schema	ON
+sync_binlog	1
+transaction_isolation	REPEATABLE-READ

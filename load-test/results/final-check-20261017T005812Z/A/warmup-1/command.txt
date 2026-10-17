@@ -1,0 +1,1 @@
+docker run --rm --name seat-loadcheck-k6 --network seat-loadcheck-net --user 197609:197121 -v C:/Users/USER/Desktop/seat-reservation/load-test:/scripts:ro -v C:/Users/USER/Desktop/seat-reservation/load-test/results/final-check-20261017T005812Z/A/warmup-1:/out -e BASE_URLS=http://app-1:8080 -e SUMMARY_DIR=/out --entrypoint sh grafana/k6:2.3.0 /scripts/final-check/k6-run.sh 
