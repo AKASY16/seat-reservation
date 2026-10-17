@@ -171,6 +171,59 @@ class ApiTest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("소수점이 있는 공연·좌석 id는 정수로 바꾸지 않고 400으로 거절한다")
+    void rejectsFractionalIds() throws Exception {
+        List<Long> seatIds = fixtures.createPerformanceWithSeats(1);
+        Long seatId = seatIds.getFirst();
+        long performanceId = fixtures.performanceIdOf(seatId);
+
+        // 소수 부분을 버리면 둘 다 실제로 있는 공연과 좌석이 된다.
+        List<String> bodies = List.of(
+                "{\"performanceId\":%d,\"seatIds\":[%d.9]}".formatted(performanceId, seatId),
+                "{\"performanceId\":%d.9,\"seatIds\":[%d]}".formatted(performanceId, seatId));
+        for (String body : bodies) {
+            mockMvc.perform(post("/holds")
+                            .header("X-User-Id", "fraction")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+
+        assertThat(fixtures.seatStatus(seatId)).isEqualTo("AVAILABLE");
+        assertThat(fixtures.count("SELECT COUNT(*) FROM seat_hold WHERE user_id = ?", "fraction")).isZero();
+    }
+
+    @Test
+    @DisplayName("DB에 저장할 수 없는 결제 시각은 400으로 거절하고 아무것도 기록하지 않는다")
+    void rejectsUnstorableOccurredAt() throws Exception {
+        List<Long> seatIds = fixtures.createPerformanceWithSeats(1);
+        String holdId = createHold("payer", fixtures.performanceIdOf(seatIds.getFirst()), seatIds.getFirst());
+
+        for (String occurredAt : List.of("+10000-01-01T00:00:00Z", "0999-12-31T23:59:59Z")) {
+            mockMvc.perform(post("/payment-events").contentType(MediaType.APPLICATION_JSON)
+                            .content(paymentEvent("evt-range", "pay-range", holdId, "approved", occurredAt)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(startsWith("occurredAt")));
+        }
+
+        assertThat(fixtures.count("SELECT COUNT(*) FROM payment_event WHERE event_id = ?", "evt-range")).isZero();
+        assertThat(fixtures.count("SELECT COUNT(*) FROM unmatched_payment_event WHERE event_id = ?", "evt-range")).isZero();
+        assertThat(fixtures.count("SELECT COUNT(*) FROM payment WHERE payment_id = ?", "pay-range")).isZero();
+        assertThat(fixtures.holdStatus(holdId)).isEqualTo("ACTIVE");
+
+        // 범위의 양 끝 값은 저장된다.
+        mockMvc.perform(post("/payment-events").contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentEvent("evt-range-max", "pay-range", holdId, "approved", "9999-12-31T23:59:59.999999Z")))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/payment-events").contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentEvent("evt-range-min", "pay-range", holdId, "approved", "1000-01-01T00:00:00Z")))
+                .andExpect(status().isOk());
+        assertThat(fixtures.count("SELECT COUNT(*) FROM payment_event WHERE event_id IN (?, ?)",
+                "evt-range-max", "evt-range-min")).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("처리할 수 없는 결제 이벤트는 422로 거절하고, 재전송되어도 한 번만 보관한다")
     void rejectedPaymentEventsAreStoredOnce() throws Exception {
         List<Long> seatIds = fixtures.createPerformanceWithSeats(2);
@@ -254,10 +307,14 @@ class ApiTest extends IntegrationTestSupport {
     }
 
     private String paymentEvent(String eventId, String paymentId, String holdId, String status) {
+        return paymentEvent(eventId, paymentId, holdId, status, "2026-10-18T03:00:30Z");
+    }
+
+    private String paymentEvent(String eventId, String paymentId, String holdId, String status, String occurredAt) {
         return """
                 {"eventId":"%s","paymentId":"%s","holdId":"%s",
-                 "status":"%s","occurredAt":"2026-10-18T03:00:30Z"}
-                """.formatted(eventId, paymentId, holdId, status);
+                 "status":"%s","occurredAt":"%s"}
+                """.formatted(eventId, paymentId, holdId, status, occurredAt);
     }
 
     private String holdBody(long performanceId, Long... seatIds) {

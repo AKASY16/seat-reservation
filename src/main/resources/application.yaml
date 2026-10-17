@@ -10,6 +10,12 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  jackson:
+    deserialization:
+      # 소수점이 있는 숫자를 정수 필드로 받을 때 소수 부분을 버리지 않고 400으로 거절한다.
+      # 버리면 990.9가 990번 좌석이 되어, 요청하지 않은 좌석을 선점하게 된다.
+      accept-float-as-int: false
+
   jpa:
     open-in-view: false
     hibernate:

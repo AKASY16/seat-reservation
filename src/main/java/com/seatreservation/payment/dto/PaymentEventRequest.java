@@ -1,5 +1,6 @@
 package com.seatreservation.payment.dto;
 
+import com.seatreservation.common.StorableDateTime;
 import com.seatreservation.payment.domain.PaymentEventStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +16,7 @@ public record PaymentEventRequest(
         @NotBlank @Size(max = 64) String paymentId,
         @NotBlank @Size(max = 36) String holdId,
         @NotNull PaymentEventStatus status,
-        @NotNull Instant occurredAt
+        @NotNull @StorableDateTime Instant occurredAt
 ) {
 
     // 만료 시각과 같은 정밀도(마이크로초)로 맞춘다. DB에 저장되는 값과 비교에 쓰는 값이 같아진다.

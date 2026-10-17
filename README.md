@@ -80,7 +80,7 @@ Docker가 실행 중이어야 합니다. 테스트가 Testcontainers로 MySQL 8.
 |---|---|
 | `SeatHoldConcurrencyTest` | 같은 좌석 동시 요청은 하나만 성공, 여러 좌석은 전부 또는 전무, 같은 `Idempotency-Key`는 선점 하나, 만료와 재선점이 겹쳐도 데드락 없음 |
 | `PaymentEventServiceTest` | 같은 이벤트는 한 번만 반영, 취소가 먼저 와도 결제는 취소로 끝남, 만료 전 승인은 판매·만료 후 승인은 환불 대상, 같은 좌석의 늦은 승인은 한 결제에만 판매 |
-| `ApiTest` | HTTP 요청·응답 형식과 상태 코드, 처리할 수 없는 결제 이벤트의 422 거절과 기록 |
+| `ApiTest` | HTTP 요청·응답 형식과 상태 코드, 잘못된 입력의 400 거절, 처리할 수 없는 결제 이벤트의 422 거절과 기록 |
 | `RestartPersistenceTest` | 판매 확정 후 애플리케이션 컨텍스트를 다시 띄워도 좌석이 SOLD |
 
 만료 시각은 테스트용 `Clock`으로 제어합니다. 경합 테스트는 관측된 결과가 규칙에 맞는지 검사하며, 모든 처리 순서의 실행을 강제하지는 않습니다.
@@ -121,6 +121,8 @@ Docker가 실행 중이어야 합니다. 테스트가 Testcontainers로 MySQL 8.
 
 - HTTP 요청·응답 형식과 상태 코드
 - 64자를 넘는 사용자 식별자나 키는 400
+- 소수점이 있는 공연·좌석 id는 정수로 바꾸지 않고 400, 어떤 좌석도 선점되지 않음
+- DB에 저장할 수 없는 결제 시각은 400, 결제·이벤트 기록이 남지 않음
 - 알 수 없는 선점이나 다른 선점에 연결된 결제로 온 이벤트는 422로 거절하고, 재전송되어도 한 번만 보관
 - 같은 결제가 서로 다른 선점으로 동시에 승인되면 한쪽만 판매하고 다른 쪽은 422로 보관
 
@@ -165,7 +167,7 @@ Docker가 실행 중이어야 합니다. 테스트가 Testcontainers로 MySQL 8.
 | `200 OK` | 같은 `Idempotency-Key`로 이미 만들어진 선점을 돌려줌 |
 | `409 SEAT_UNAVAILABLE` | 요청한 좌석 전체를 확보할 수 없음. 이미 점유된 좌석, 없는 좌석, 다른 공연의 좌석이 하나라도 섞이면 요청 전체가 실패하고 어느 좌석도 선점되지 않음 |
 | `422 IDEMPOTENCY_KEY_REUSED` | 같은 사용자가 같은 키로 다른 공연이나 다른 좌석 묶음을 요청함 |
-| `400` | 헤더 누락이나 64자 초과, 빈 좌석 목록, 중복 좌석, 한 번에 10석 초과 |
+| `400` | 헤더 누락이나 64자 초과, 빈 좌석 목록, 중복 좌석, 한 번에 10석 초과, 정수가 아닌 공연·좌석 id(예: `990.9`) |
 
 ```json
 {
@@ -210,7 +212,7 @@ Docker가 실행 중이어야 합니다. 테스트가 Testcontainers로 MySQL 8.
 | `paymentId` | 결제 식별자, 최대 64자 |
 | `holdId` | 선점 응답의 `holdId`, 최대 36자 |
 | `status` | `approved` 또는 `cancelled` |
-| `occurredAt` | 결제 제공자에서 승인·취소가 일어난 시각(ISO-8601, 예: `2026-10-18T03:01:00Z`). 이벤트가 도착한 시각이 아닙니다. |
+| `occurredAt` | 결제 제공자에서 승인·취소가 일어난 시각(ISO-8601, 예: `2026-10-18T03:01:00Z`). 이벤트가 도착한 시각이 아닙니다. DB에 저장할 수 있는 `1000-01-01T00:00:00Z`\~`9999-12-31T23:59:59.999999Z` 범위를 벗어나면 400입니다. |
 
 응답은 `200 OK`와 처리 결과입니다.
 
@@ -240,7 +242,7 @@ src/main/java/com/seatreservation
 ├── payment       결제 이벤트 처리
 ├── performance   공연
 ├── config        Clock 설정
-└── common        예외 처리
+└── common        예외 처리, 시각 범위 검증
 src/main/resources/db/migration   스키마와 샘플 데이터
 load-test                          k6 스크립트, 초기화·검증 SQL, 개발 중 측정 기록
 load-test/final-check              최종 버전 확인 실행 스크립트
@@ -271,10 +273,10 @@ load-test/results                  최종 버전 확인 실행의 원본 자료
 
 ### 최종 버전 확인 실행
 
-- 측정한 코드: 커밋 `e546546`. 애플리케이션 코드와 빌드 파일(`src/`, `build.gradle`, `settings.gradle`, `gradle/`, `Dockerfile`)은 이 커밋과 같고, 부하 시험 스크립트(`load-test/`)는 이 실행에 맞춰 고친 뒤 커밋하기 전 상태로 돌렸습니다.
+- 측정한 코드: 커밋 `e546546`. 애플리케이션 코드와 빌드 파일(`src/`, `build.gradle`, `settings.gradle`, `gradle/`, `Dockerfile`)은 이 커밋과 같고, 부하 시험 스크립트(`load-test/`)는 이 실행에 맞춰 고친 뒤 커밋하기 전 상태로 돌렸습니다. 측정 뒤에 입력 검증 두 가지(정수가 아닌 id 거절, 결제 시각 범위 검사)를 고쳤고, 이 수정을 넣은 코드로는 다시 측정하지 않았습니다.
 - 빌드한 JAR의 SHA-256: `6187f47cfa6cb2971db40aae534cc8948bb1a80e9340465dd9736941da90e90c`
 - 실행 일시: 2026-10-17 09:58 KST
-- 환경: AMD Ryzen 7 5700X3D (8코어 16스레드), 메모리 32GB, Windows 11, Docker Desktop 29.7.2 (WSL2, VM에 16 vCPU), MySQL 8.4.11, k6 2.3.0, JRE 21. 서버, MySQL, k6가 모두 이 PC에서 돌았습니다.
+- 환경: AMD Ryzen 7 5700X3D (8코어 16스레드), 메모리 32GB, Windows 11, Docker Engine 29.7.2, Docker Desktop(WSL2, VM에 16 vCPU), MySQL 8.4.11, k6 2.3.0, JRE 21. 서버, MySQL, k6가 모두 이 PC에서 돌았습니다.
 - 원본 자료: [load-test/results/final-check-20261017T005812Z](load-test/results/final-check-20261017T005812Z/) (실행별 표 [summary.md](load-test/results/final-check-20261017T005812Z/summary.md), 환경과 설정 전체 [environment.txt](load-test/results/final-check-20261017T005812Z/environment.txt))
 
 예열 6회와 정식 측정 6회가 모두 성공 판정이었고, 실패한 실행은 없었습니다. 아래는 정식 측정입니다.
