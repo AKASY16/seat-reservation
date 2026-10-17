@@ -18,7 +18,7 @@ bash load-test/final-check/run.sh
 | `GAP_SECONDS` | `30` | 정식 측정 전에 앞 실행의 k6가 끝나고 기다리는 시간 |
 | `BUILD_MODE` | `docker` | JAR 빌드 방식. `docker`는 `eclipse-temurin:21-jdk` 컨테이너에서, `local`은 PC의 JDK 21로 빌드 |
 
-예를 들어 서버 1대 구성만 한 번 돌려 보려면 `CONFIGS=A WARMUPS=1 RUNS=1 bash load-test/final-check/run.sh`입니다.
+서버 1대 구성에서 예열과 정식 측정을 각각 한 번씩 실행하려면 `CONFIGS=A WARMUPS=1 RUNS=1 bash load-test/final-check/run.sh`를 사용합니다.
 
 종료 코드는 모든 실행이 성공 판정이면 0, 하나라도 실패하면 1, 빌드나 서버 기동처럼 준비 단계에서 멈추면 2입니다.
 
