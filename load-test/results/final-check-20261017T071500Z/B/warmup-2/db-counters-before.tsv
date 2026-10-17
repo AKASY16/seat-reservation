@@ -1,0 +1,6 @@
+Innodb_row_lock_current_waits	0
+Innodb_row_lock_time	5118
+Innodb_row_lock_waits	280
+lock_deadlocks	0	enabled
+lock_timeouts	0	enabled
+lock_row_lock_waits	280	enabled

@@ -1,0 +1,2 @@
+seats	available_seats	holds	hold_items	payments	payment_events	unmatched_payment_events
+1000	1000	0	0	0	0	0

@@ -1,0 +1,8 @@
+HOST	EVENT_NAME	COUNT_STAR	total_ms	avg_ms	max_ms	lock_ms	SUM_ROWS_AFFECTED	SUM_ROWS_SENT	SUM_ROWS_EXAMINED	SUM_ERRORS
+172.20.0.3	statement/sql/commit	434	8642.487	19.914	81.725	0.000	0	0	0	0
+172.20.0.3	statement/sql/select	5000	1857.198	0.371	82.688	4.999	0	5000	11636	0
+172.20.0.3	statement/sql/update	518	662.181	1.278	35.177	373.309	908	0	1047	0
+172.20.0.3	statement/sql/insert	1273	423.526	0.333	18.387	0.771	1273	0	0	0
+172.20.0.3	statement/sql/rollback	84	327.797	3.902	17.910	0.000	0	0	0	0
+172.20.0.3	statement/sql/set_option	1036	99.033	0.096	17.431	0.000	0	0	0	0
+172.20.0.3	statement/com/Ping	20	1.162	0.058	0.079	0.000	0	0	0	0

@@ -1,0 +1,39 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /scripts/hold-load.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 200 max VUs, 5m30s max duration (incl. graceful stop):
+              * holds: 5000 iterations shared among 200 VUs (maxDuration: 5m0s, gracefulStop: 30s)
+
+
+running (0m01.0s), 200/200 VUs, 3047 complete and 0 interrupted iterations
+holds   [  61% ] 200 VUs  0m01.0s/5m0s  3047/5000 shared iters
+
+요청 5000건 (인기 구간 3041건, 60.82%)
+  201 428 / 409 4572 / 예상 밖 HTTP 응답 0 / 전송 오류 0
+  기본 http_req_failed 91.44% (409 포함), 예상 밖 응답 비율 0.00%
+완료한 반복 5000회, 시작하지 못한 반복 0회
+처리량 3330.0 req/s (시험 시간 1501.5 ms)
+응답 시간 전체 avg 53.65 / med 46.27 / p95 122.89 / max 298.32 ms
+응답 시간 201  avg 89.12 / med 85.60 / p95 175.79 / max 284.51 ms
+응답 시간 409  avg 50.33 / med 43.74 / p95 115.24 / max 298.32 ms
+서버 1 (http://app-1:8080) 요청 2496건
+서버 2 (http://app-2:8080) 요청 2504건
+check 성공 5000건, 실패 0건
+threshold
+  통과  unexpected_responses rate==0
+  통과  checks rate==1
+  통과  transport_errors count==0
+  통과  iterations count==5000
+  통과  holds_unexpected_status count==0
+
+running (0m01.5s), 000/200 VUs, 5000 complete and 0 interrupted iterations
+holds ✓ [ 100% ] 200 VUs  0m01.5s/5m0s  5000/5000 shared iters

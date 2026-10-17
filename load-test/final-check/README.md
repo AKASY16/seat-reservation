@@ -88,5 +88,5 @@ bash load-test/final-check/run.sh
 ```bash
 docker compose -p seat-loadcheck -f load-test/final-check/compose.yml down -v
 docker volume rm seat-loadcheck-gradle
-docker image rm seat-loadcheck-app:e546546
+docker image rm seat-loadcheck-app:1ace1d7
 ```

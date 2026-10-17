@@ -1,0 +1,8 @@
+seats_with_multiple_active_holds
+0
+partially_held_holds
+0
+orphan_held_seats
+0
+held_seats	held_popular_seats	holds
+881	100	451
